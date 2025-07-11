@@ -1,0 +1,25 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const TournamentController_1 = require("../controllers/TournamentController");
+const auth_1 = require("../middleware/auth");
+const validation_1 = require("../middleware/validation");
+const router = (0, express_1.Router)();
+// Public routes (read-only)
+router.get('/', TournamentController_1.tournamentController.getAll);
+router.get('/search', TournamentController_1.tournamentController.search);
+router.get('/stats', TournamentController_1.tournamentController.getStats);
+router.get('/upcoming', TournamentController_1.tournamentController.getUpcoming);
+router.get('/recent', TournamentController_1.tournamentController.getRecent);
+router.get('/year/:year', TournamentController_1.tournamentController.getByYear);
+router.get('/format/:format', TournamentController_1.tournamentController.getByFormat);
+router.get('/:id', validation_1.validateObjectId, TournamentController_1.tournamentController.getById);
+router.get('/:id/results', validation_1.validateObjectId, TournamentController_1.tournamentController.getWithResults);
+// Protected routes (require authentication)
+router.post('/', auth_1.requireAuth, TournamentController_1.tournamentController.create);
+router.put('/:id', auth_1.requireAuth, validation_1.validateObjectId, TournamentController_1.tournamentController.update);
+router.delete('/:id', auth_1.requireAuth, validation_1.validateObjectId, TournamentController_1.tournamentController.delete);
+// Admin routes
+router.post('/bulk-import', auth_1.requireAuth, TournamentController_1.tournamentController.bulkImport);
+exports.default = router;
+//# sourceMappingURL=tournaments.js.map

@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+# Install dependencies for MongoDB operations
+RUN apk add --no-cache curl
+
+# Set working directory
+WORKDIR /app
+
+# Create package.json for MongoDB driver
+RUN echo '{"name": "data-init", "version": "1.0.0", "dependencies": {"mongodb": "^6.0.0"}}' > package.json
+
+# Install MongoDB driver
+RUN npm install
+
+# Copy the data initialization script
+COPY scripts/simple-data-import.js /app/simple-data-import.js
+
+# Make sure the status directory exists
+RUN mkdir -p /app/status
+
+# Set the command to run our data import script
+CMD ["node", "/app/simple-data-import.js"]
