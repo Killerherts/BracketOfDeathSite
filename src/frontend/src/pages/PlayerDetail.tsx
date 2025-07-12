@@ -54,8 +54,10 @@ const PlayerDetail: React.FC = () => {
     );
   }
 
-  const player = (playerResponse as any)?.data;
-  const results = (resultsResponse as any)?.data || [];
+  const player = playerResponse as any;
+  const resultsData = resultsResponse as any;
+  const results = resultsData?.results || [];
+  const playerStats = resultsData?.stats;
 
   if (!player) {
     return (
@@ -163,15 +165,19 @@ const PlayerDetail: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Games Played</span>
-              <span className="font-medium">{player.gamesPlayed || 0}</span>
+              <span className="font-medium">{playerStats?.totalGames || player.gamesPlayed || 0}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Games Won</span>
-              <span className="font-medium">{player.gamesWon || 0}</span>
+              <span className="font-medium">{playerStats?.totalWins || player.gamesWon || 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Games Lost</span>
+              <span className="font-medium">{playerStats?.totalLosses || (player.gamesPlayed - player.gamesWon) || 0}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Winning Percentage</span>
-              <span className="font-medium">{((player.winningPercentage || 0) * 100).toFixed(1)}%</span>
+              <span className="font-medium">{((playerStats?.overallWinPercentage || player.winningPercentage || 0) * 100).toFixed(1)}%</span>
             </div>
           </div>
         </Card>
@@ -221,7 +227,7 @@ const PlayerDetail: React.FC = () => {
         ) : Array.isArray(results) && results.length > 0 ? (
           <div className="space-y-3">
             {results.slice(0, 5).map((result: any) => (
-              <div key={result.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={result.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex items-center space-x-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                     result.totalStats?.bodFinish === 1 ? 'bg-yellow-100 text-yellow-800' :
@@ -232,12 +238,20 @@ const PlayerDetail: React.FC = () => {
                     {result.totalStats?.bodFinish || 0}
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">
-                      BOD #{result.tournament?.bodNumber} - {result.tournament?.location}
-                    </div>
+                    <Link 
+                      to={`/tournaments/${result.tournamentId?.id || result.tournamentId?._id || result.tournamentId}`}
+                      className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
+                    >
+                      BOD #{result.tournamentId?.bodNumber || 'N/A'} - {result.tournamentId?.location || 'Unknown Location'}
+                    </Link>
                     <div className="text-sm text-gray-600">
-                      {result.tournament?.date ? new Date(result.tournament.date).toLocaleDateString() : 'Date unknown'}
+                      {result.tournamentId?.date ? new Date(result.tournamentId.date).toLocaleDateString() : 'Date unknown'}
                     </div>
+                    {result.teamName && (
+                      <div className="text-sm text-gray-500">
+                        Team: {result.teamName}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -250,6 +264,11 @@ const PlayerDetail: React.FC = () => {
                       '0%'
                     }
                   </div>
+                  {result.performanceGrade && (
+                    <div className="text-xs text-gray-500">
+                      Grade: {result.performanceGrade}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

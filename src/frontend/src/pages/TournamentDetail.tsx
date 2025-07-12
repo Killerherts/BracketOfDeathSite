@@ -89,7 +89,7 @@ const TournamentDetail: React.FC = () => {
     );
   }
 
-  if (!tournament || !('data' in tournament)) {
+  if (!tournament) {
     return (
       <div className="text-center py-12">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -104,7 +104,7 @@ const TournamentDetail: React.FC = () => {
     );
   }
 
-  const tournamentData = (tournament as any).data;
+  const tournamentData = tournament as any;
 
   return (
     <div className="space-y-6">
@@ -206,7 +206,26 @@ const TournamentDetail: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Teams</span>
                   <span className="font-medium">
-                    {results && 'data' in (results as any) && Array.isArray((results as any).data) ? (results as any).data.length : 0}
+                    {results && (results as any).results ? (results as any).results.length : 0}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Champion</span>
+                  <span className="font-medium text-yellow-600">
+                    {results && (results as any).results ? 
+                      (() => {
+                        const champion = (results as any).results.find((r: any) => r.totalStats?.bodFinish === 1);
+                        return champion ? champion.teamName : 'N/A';
+                      })() : 'N/A'
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Games</span>
+                  <span className="font-medium">
+                    {results && (results as any).results ? 
+                      (results as any).results.reduce((sum: number, r: any) => sum + (r.totalStats?.totalPlayed || 0), 0) : 0
+                    }
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -242,86 +261,343 @@ const TournamentDetail: React.FC = () => {
       )}
 
       {activeTab === 'results' && (
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Results</h3>
-          {resultsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <LoadingSpinner size="md" />
-              <span className="ml-2 text-gray-500">Loading results...</span>
-            </div>
-          ) : results && 'data' in (results as any) && Array.isArray((results as any).data) && (results as any).data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="table-header">Rank</th>
-                    <th className="table-header">Team</th>
-                    <th className="table-header">Division</th>
-                    <th className="table-header">Games Won</th>
-                    <th className="table-header">Games Lost</th>
-                    <th className="table-header">Win %</th>
-                    <th className="table-header">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {((results as any).data as any[]).sort((a, b) => (a.totalStats?.bodFinish || 999) - (b.totalStats?.bodFinish || 999)).map((result) => (
-                    <tr key={result._id} className="hover:bg-gray-50">
-                      <td className="table-cell">
-                        <div className="flex items-center">
-                          <span className="font-medium">#{result.totalStats?.bodFinish || 'N/A'}</span>
-                          {result.totalStats?.bodFinish === 1 && <span className="ml-1">🏆</span>}
-                          {result.totalStats?.bodFinish === 2 && <span className="ml-1">🥈</span>}
-                          {result.totalStats?.bodFinish === 3 && <span className="ml-1">🥉</span>}
-                        </div>
-                      </td>
-                      <td className="table-cell">
-                        <div className="font-medium">{result.teamName || 'Team'}</div>
-                      </td>
-                      <td className="table-cell">
-                        <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                          {result.division || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="table-cell font-medium text-green-600">
-                        {result.totalStats?.totalWon || 0}
-                      </td>
-                      <td className="table-cell font-medium text-red-600">
-                        {result.totalStats?.totalLost || 0}
-                      </td>
-                      <td className="table-cell font-medium">
-                        {result.totalStats?.totalPlayed > 0 ? 
-                          ((result.totalStats?.totalWon / result.totalStats?.totalPlayed) * 100).toFixed(1) + '%' : 
-                          '0%'
-                        }
-                      </td>
-                      <td className="table-cell">
-                        <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No results found for this tournament</p>
-            </div>
+        <div className="space-y-6">
+          {/* Tournament Summary */}
+          {results && (results as any).results && (
+            <Card>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">{(results as any).results.length}</div>
+                  <div className="text-sm text-gray-600">Teams</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {(results as any).results.filter((r: any) => r.totalStats?.bodFinish === 1).length}
+                  </div>
+                  <div className="text-sm text-gray-600">Champions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {(results as any).results.reduce((sum: number, r: any) => sum + (r.totalStats?.totalWon || 0), 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Games Won</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-600">
+                    {(results as any).results.reduce((sum: number, r: any) => sum + (r.totalStats?.totalPlayed || 0), 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Games Played</div>
+                </div>
+              </div>
+            </Card>
           )}
-        </Card>
+
+          {/* Results Table */}
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Results</h3>
+            {resultsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner size="md" />
+                <span className="ml-2 text-gray-500">Loading results...</span>
+              </div>
+            ) : results && (results as any).results && (results as any).results.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seed</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RR Record</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bracket Record</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Record</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Win %</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {((results as any).results as any[]).sort((a, b) => (a.totalStats?.bodFinish || 999) - (b.totalStats?.bodFinish || 999)).map((result) => (
+                      <tr key={result.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <span className="font-medium text-gray-900">#{result.totalStats?.bodFinish || 'N/A'}</span>
+                            {result.totalStats?.bodFinish === 1 && <span className="ml-2">🏆</span>}
+                            {result.totalStats?.bodFinish === 2 && <span className="ml-2">🥈</span>}
+                            {result.totalStats?.bodFinish === 3 && <span className="ml-2">🥉</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="font-medium text-gray-900">{result.teamName || 'Team'}</div>
+                            <div className="text-sm text-gray-500">
+                              {result.players?.[0]?.name} & {result.players?.[1]?.name}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            {result.division || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          #{result.seed || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {result.roundRobinScores?.rrWon || 0}-{result.roundRobinScores?.rrLost || 0}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ({((result.roundRobinScores?.rrWinPercentage || 0) * 100).toFixed(1)}%)
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {result.bracketScores?.bracketWon || 0}-{result.bracketScores?.bracketLost || 0}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ({result.bracketScores?.bracketPlayed || 0} games)
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">
+                              {result.totalStats?.totalWon || 0}-{result.totalStats?.totalLost || 0}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ({result.totalStats?.totalPlayed || 0} games)
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-medium text-gray-900">
+                            {result.totalStats?.totalPlayed > 0 ? 
+                              ((result.totalStats?.totalWon / result.totalStats?.totalPlayed) * 100).toFixed(1) + '%' : 
+                              '0%'
+                            }
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            result.performanceGrade === 'A' ? 'bg-green-100 text-green-800' :
+                            result.performanceGrade === 'B' ? 'bg-blue-100 text-blue-800' :
+                            result.performanceGrade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                            result.performanceGrade === 'D' ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {result.performanceGrade || 'N/A'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No results found for this tournament</p>
+              </div>
+            )}
+          </Card>
+        </div>
       )}
 
       {activeTab === 'bracket' && (
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Bracket</h3>
-          <div className="text-center py-8">
-            <p className="text-gray-500">Bracket visualization coming soon...</p>
-            <p className="text-sm text-gray-400 mt-2">
-              This feature will display the tournament bracket with match results
-            </p>
-          </div>
-        </Card>
+        <div className="space-y-6">
+          {/* Bracket Header */}
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Bracket</h3>
+            {results && (results as any).results ? (
+              <div className="text-sm text-gray-600 mb-4">
+                Showing bracket progression for {(results as any).results.length} teams
+              </div>
+            ) : null}
+          </Card>
+
+          {/* Bracket Visualization */}
+          {results && (results as any).results && (results as any).results.length > 0 ? (
+            <div className="space-y-6">
+              {/* Seeding and Round Robin Results */}
+              <Card>
+                <h4 className="text-md font-semibold text-gray-900 mb-4">Round Robin Seeding</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {((results as any).results as any[])
+                    .sort((a, b) => (a.seed || 999) - (b.seed || 999))
+                    .map((result) => (
+                      <div 
+                        key={result.id} 
+                        className={`p-3 rounded-lg border-2 ${
+                          result.seed <= 4 ? 'border-green-200 bg-green-50' :
+                          result.seed <= 8 ? 'border-blue-200 bg-blue-50' :
+                          result.seed <= 12 ? 'border-yellow-200 bg-yellow-50' :
+                          'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-sm">#{result.seed || 'N/A'}</span>
+                          <span className="text-xs text-gray-600">RR: {result.roundRobinScores?.rrWon || 0}-{result.roundRobinScores?.rrLost || 0}</span>
+                        </div>
+                        <div className="font-medium text-sm text-gray-900 mb-1">
+                          {result.teamName || 'Unknown Team'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {result.division || 'No Division'}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+
+              {/* Bracket Rounds */}
+              <Card>
+                <h4 className="text-md font-semibold text-gray-900 mb-4">Bracket Results</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Team</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">R16</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">QF</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SF</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Finals</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {((results as any).results as any[])
+                        .sort((a, b) => (a.totalStats?.bodFinish || 999) - (b.totalStats?.bodFinish || 999))
+                        .filter(result => (result.bracketScores?.bracketPlayed || 0) > 0)
+                        .map((result) => (
+                          <tr key={result.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <span className="font-medium text-sm">{result.teamName}</span>
+                                {result.totalStats?.bodFinish === 1 && <span className="ml-2">🏆</span>}
+                                {result.totalStats?.bodFinish === 2 && <span className="ml-2">🥈</span>}
+                                {result.totalStats?.bodFinish === 3 && <span className="ml-2">🥉</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              {(result.bracketScores?.r16Won || 0) > 0 || (result.bracketScores?.r16Lost || 0) > 0 ? (
+                                <span className={result.bracketScores.r16Won > result.bracketScores.r16Lost ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                  {result.bracketScores.r16Won}-{result.bracketScores.r16Lost}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              {(result.bracketScores?.qfWon || 0) > 0 || (result.bracketScores?.qfLost || 0) > 0 ? (
+                                <span className={result.bracketScores.qfWon > result.bracketScores.qfLost ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                  {result.bracketScores.qfWon}-{result.bracketScores.qfLost}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              {(result.bracketScores?.sfWon || 0) > 0 || (result.bracketScores?.sfLost || 0) > 0 ? (
+                                <span className={result.bracketScores.sfWon > result.bracketScores.sfLost ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                  {result.bracketScores.sfWon}-{result.bracketScores.sfLost}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              {(result.bracketScores?.finalsWon || 0) > 0 || (result.bracketScores?.finalsLost || 0) > 0 ? (
+                                <span className={result.bracketScores.finalsWon > result.bracketScores.finalsLost ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                  {result.bracketScores.finalsWon}-{result.bracketScores.finalsLost}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <span className="font-medium text-sm">#{result.totalStats?.bodFinish}</span>
+                                <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${
+                                  result.performanceGrade === 'A' ? 'bg-green-100 text-green-800' :
+                                  result.performanceGrade === 'B' ? 'bg-blue-100 text-blue-800' :
+                                  result.performanceGrade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                                  result.performanceGrade === 'D' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {result.performanceGrade || 'F'}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* Champions Podium */}
+              <Card>
+                <h4 className="text-md font-semibold text-gray-900 mb-4">Final Standings</h4>
+                <div className="flex justify-center items-end space-x-4">
+                  {/* Second Place */}
+                  {(() => {
+                    const secondPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 2);
+                    return secondPlace ? (
+                      <div className="text-center">
+                        <div className="w-20 h-16 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2">
+                          <span className="text-3xl">🥈</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{secondPlace.teamName}</div>
+                        <div className="text-xs text-gray-600">2nd Place</div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* First Place */}
+                  {(() => {
+                    const firstPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 1);
+                    return firstPlace ? (
+                      <div className="text-center">
+                        <div className="w-24 h-20 bg-yellow-300 rounded-t-lg flex items-center justify-center mb-2">
+                          <span className="text-4xl">🏆</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{firstPlace.teamName}</div>
+                        <div className="text-xs text-gray-600">Champion</div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Third Place */}
+                  {(() => {
+                    const thirdPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 3);
+                    return thirdPlace ? (
+                      <div className="text-center">
+                        <div className="w-20 h-12 bg-orange-200 rounded-t-lg flex items-center justify-center mb-2">
+                          <span className="text-3xl">🥉</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{thirdPlace.teamName}</div>
+                        <div className="text-xs text-gray-600">3rd Place</div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <Card>
+              <div className="text-center py-8">
+                <p className="text-gray-500">No bracket data available for this tournament</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Check the Results tab to see team performance data
+                </p>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );
