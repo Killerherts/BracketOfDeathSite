@@ -23,7 +23,7 @@ db.createCollection('players', {
   validator: {
     $jsonSchema: {
       bsonType: 'object',
-      required: ['firstName', 'lastName', 'email'],
+      required: ['firstName', 'lastName'],
       properties: {
         firstName: {
           bsonType: 'string',
@@ -36,7 +36,7 @@ db.createCollection('players', {
         email: {
           bsonType: 'string',
           pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
-          description: 'must be a valid email address and is required'
+          description: 'must be a valid email address if provided'
         },
         phone: {
           bsonType: 'string',
@@ -135,7 +135,7 @@ db.createCollection('tournamentresults', {
 });
 
 // Create indexes for better performance
-db.players.createIndex({ email: 1 }, { unique: true });
+db.players.createIndex({ email: 1 }, { unique: true, sparse: true });
 db.players.createIndex({ firstName: 1, lastName: 1 });
 db.players.createIndex({ state: 1 });
 db.players.createIndex({ winningPercentage: -1 });

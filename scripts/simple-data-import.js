@@ -322,12 +322,11 @@ async function importPlayers(db) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
     
-    // Create simple player document
+    // Create simple player document - only include email if we have a real one
     const cleanPlayer = {
       name: fullName,
       firstName: firstName,
       lastName: lastName,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@bracketofdeath.com`,
       phone: player.phone || player.Phone || '',
       city: player.city || player.City || '',
       state: player.state || player.State || '',
@@ -347,6 +346,12 @@ async function importPlayers(db) {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    
+    // Only add email if we have one from the source data
+    const email = player.email || player.Email || '';
+    if (email && email.includes('@')) {
+      cleanPlayer.email = email;
+    }
     
     players.push(cleanPlayer);
   }
