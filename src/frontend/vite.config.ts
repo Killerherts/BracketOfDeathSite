@@ -10,5 +10,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts,
+    proxy: {
+      '/api': {
+        target: 'http://bod-backend:3000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
 })
