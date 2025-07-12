@@ -5,12 +5,14 @@ services:
     container_name: bod-mongodb
     restart: unless-stopped
     command: ["mongod", "--logpath", "/var/log/mongodb/mongod.log", "--logappend", "--quiet"]
+    env_file:
+      - .env
     environment:
-      MONGO_INITDB_ROOT_USERNAME: bodadmin
-      MONGO_INITDB_ROOT_PASSWORD: bodpassword123
-      MONGO_INITDB_DATABASE: bracket_of_death
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     ports:
-      - "27018:27017"
+      - "${MONGODB_PORT}:27017"
     volumes:
       # Use Docker volume instead of bind mount to avoid permission issues
       - mongodb-data:/data/db
@@ -35,8 +37,10 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      MONGODB_URI: mongodb://bodadmin:bodpassword123@mongodb:27017/bracket_of_death?authSource=admin
+      MONGODB_URI: ${MONGODB_URI}
     volumes:
       - ./json:/app/data:ro
       - ./data/init-status:/app/status
@@ -56,14 +60,16 @@ services:
         condition: service_healthy
       data-init:
         condition: service_completed_successfully
+    env_file:
+      - .env
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      MONGODB_URI: mongodb://bodadmin:bodpassword123@mongodb:27017/bracket_of_death?authSource=admin
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-      CORS_ORIGIN: http://localhost:8080
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${BACKEND_PORT}
+      MONGODB_URI: ${MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
     ports:
-      - "3333:3000"
+      - "${BACKEND_EXTERNAL_PORT}:${BACKEND_PORT}"
     volumes:
       # Backend logs
       - ./data/logs/backend:/app/logs
@@ -85,10 +91,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      VITE_API_URL: http://localhost:3333/api
+      VITE_API_URL: ${VITE_API_URL}
     ports:
-      - "8080:5173"
+      - "${FRONTEND_EXTERNAL_PORT}:${FRONTEND_PORT}"
     networks:
       - bod-network
     healthcheck:
