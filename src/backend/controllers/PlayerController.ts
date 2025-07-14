@@ -20,7 +20,7 @@ export class PlayerController extends BaseController<IPlayer> {
     }
 
     // Numeric range filters
-    const numericFields = ['bodsPlayed', 'bestResult', 'avgFinish', 'winningPercentage', 'totalChampionships'];
+    const numericFields = ['bodsPlayed', 'bestResult', 'avgFinish', 'winningPercentage', 'totalChampionships', 'gamesPlayed', 'gamesWon'];
     
     numericFields.forEach(field => {
       const value = filterParams[field];
@@ -39,6 +39,19 @@ export class PlayerController extends BaseController<IPlayer> {
         }
       }
     });
+
+    // Division filtering
+    if (filterParams.division) {
+      filter.division = new RegExp(filterParams.division, 'i');
+    }
+
+    // City/State filtering
+    if (filterParams.city) {
+      filter.city = new RegExp(filterParams.city, 'i');
+    }
+    if (filterParams.state) {
+      filter.state = new RegExp(filterParams.state, 'i');
+    }
 
     return filter;
   }

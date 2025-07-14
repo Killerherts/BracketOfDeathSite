@@ -12,6 +12,9 @@ const Players: React.FC = () => {
     winningPercentage_min: undefined as number | undefined,
     winningPercentage_max: undefined as number | undefined,
     totalChampionships_min: undefined as number | undefined,
+    gamesPlayed_min: undefined as number | undefined,
+    bodsPlayed_min: undefined as number | undefined,
+    bestResult_max: undefined as number | undefined,
     sort: 'name',
   });
 
@@ -46,7 +49,7 @@ const Players: React.FC = () => {
     setFilters(prev => ({ 
       ...prev, 
       [key]: key.includes('_min') || key.includes('_max') 
-        ? (value === '' ? undefined : parseInt(value) / 100) // Convert percentage to decimal
+        ? (value === '' ? undefined : key.includes('winningPercentage') ? parseInt(value) / 100 : parseInt(value)) // Convert percentage to decimal, others stay as numbers
         : value 
     }));
     setPage(1);
@@ -74,7 +77,7 @@ const Players: React.FC = () => {
       <Card>
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search Players
               </label>
@@ -87,6 +90,36 @@ const Players: React.FC = () => {
               />
             </div>
             
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Min Games Played
+              </label>
+              <input
+                type="number"
+                value={filters.gamesPlayed_min || ''}
+                onChange={(e) => handleFilterChange('gamesPlayed_min', e.target.value)}
+                placeholder="0+"
+                min="0"
+                className="input"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Min BODs Played
+              </label>
+              <input
+                type="number"
+                value={filters.bodsPlayed_min || ''}
+                onChange={(e) => handleFilterChange('bodsPlayed_min', e.target.value)}
+                placeholder="0+"
+                min="0"
+                className="input"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Min Win Rate %
@@ -119,6 +152,20 @@ const Players: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Best Finish (1st = 1)
+              </label>
+              <input
+                type="number"
+                value={filters.bestResult_max || ''}
+                onChange={(e) => handleFilterChange('bestResult_max', e.target.value)}
+                placeholder="1-20"
+                min="1"
+                className="input"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sort By
               </label>
               <select
@@ -136,6 +183,9 @@ const Players: React.FC = () => {
                 <option value="totalChampionships">Championships (Least to Most)</option>
                 <option value="-bodsPlayed">BODs Played (Most to Least)</option>
                 <option value="bodsPlayed">BODs Played (Least to Most)</option>
+                <option value="bestResult">Best Finish (1st to Last)</option>
+                <option value="-avgFinish">Avg Finish (Best to Worst)</option>
+                <option value="avgFinish">Avg Finish (Worst to Best)</option>
               </select>
             </div>
           </div>

@@ -36,9 +36,14 @@ export interface IPlayerUpdate extends Partial<IPlayerInput> {
 
 export interface IPlayerFilter {
   name?: string | RegExp;
-  bodsPlayed?: { $gte?: number; $lte?: number };
-  bestResult?: { $gte?: number; $lte?: number };
-  avgFinish?: { $gte?: number; $lte?: number };
-  winningPercentage?: { $gte?: number; $lte?: number };
-  totalChampionships?: { $gte?: number; $lte?: number };
+  bodsPlayed?: number | { $gte?: number; $lte?: number };
+  bestResult?: number | { $gte?: number; $lte?: number };
+  avgFinish?: number | { $gte?: number; $lte?: number };
+  winningPercentage?: number | { $gte?: number; $lte?: number };
+  totalChampionships?: number | { $gte?: number; $lte?: number };
+  gamesPlayed?: number | { $gte?: number; $lte?: number };
+  gamesWon?: number | { $gte?: number; $lte?: number };
+  division?: string | RegExp;
+  city?: string | RegExp;
+  state?: string | RegExp;
 }

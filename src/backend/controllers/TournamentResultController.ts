@@ -15,7 +15,7 @@ export class TournamentResultController extends BaseController<ITournamentResult
   // Override buildFilter for tournament result-specific filtering
   protected override buildFilter(query: any): ITournamentResultFilter {
     const filter: ITournamentResultFilter = {};
-    const { page, limit, sort, select, populate, q, ...filterParams } = query;
+    const { page, limit, sort, select, populate, q, year, ...filterParams } = query;
 
     // Tournament ID filtering
     if (filterParams.tournamentId) {
@@ -97,14 +97,15 @@ export class TournamentResultController extends BaseController<ITournamentResult
       const options = {
         page: parseInt(req.query.page as string) || 1,
         limit: parseInt(req.query.limit as string) || 10,
-        sort: (req.query.sort as string) || '-createdAt',
+        sort: (req.query.sort as string) || '-tournament.date',
         select: req.query.select as string,
       };
 
       const filter = this.buildFilter(req.query);
+      const year = req.query.year as string;
 
       // Use aggregation for better performance with populated data
-      const pipeline = [
+      const pipeline: any[] = [
         { $match: filter },
         {
           $lookup: {
@@ -140,6 +141,22 @@ export class TournamentResultController extends BaseController<ITournamentResult
             },
           },
         },
+      ];
+
+      // Add year filtering after lookup if specified
+      if (year) {
+        const yearInt = parseInt(year);
+        pipeline.push({
+          $match: {
+            'tournament.date': {
+              $gte: new Date(`${yearInt}-01-01`),
+              $lte: new Date(`${yearInt}-12-31`),
+            },
+          },
+        });
+      }
+
+      pipeline.push(
         {
           $project: {
             tournamentDetails: 0,
@@ -148,13 +165,47 @@ export class TournamentResultController extends BaseController<ITournamentResult
         },
         { $sort: this.parseSortString(options.sort) },
         { $skip: (options.page - 1) * options.limit },
-        { $limit: options.limit },
+        { $limit: options.limit }
+      );
+
+      // Create count pipeline for accurate total with year filtering
+      const countPipeline = [
+        { $match: filter },
+        {
+          $lookup: {
+            from: 'tournaments',
+            localField: 'tournamentId',
+            foreignField: '_id',
+            as: 'tournament',
+          },
+        },
+        {
+          $addFields: {
+            tournament: { $arrayElemAt: ['$tournament', 0] },
+          },
+        },
       ];
 
-      const [results, total] = await Promise.all([
+      if (year) {
+        const yearInt = parseInt(year);
+        countPipeline.push({
+          $match: {
+            'tournament.date': {
+              $gte: new Date(`${yearInt}-01-01`),
+              $lte: new Date(`${yearInt}-12-31`),
+            },
+          },
+        });
+      }
+
+      countPipeline.push({ $count: 'total' } as any);
+
+      const [results, totalResult] = await Promise.all([
         TournamentResult.aggregate(pipeline),
-        TournamentResult.countDocuments(filter),
+        TournamentResult.aggregate(countPipeline),
       ]);
+
+      const total = totalResult.length > 0 ? totalResult[0].total : 0;
 
       const pages = Math.ceil(total / options.limit);
 
@@ -492,7 +543,9 @@ export class TournamentResultController extends BaseController<ITournamentResult
     parts.forEach(part => {
       const trimmed = part.trim();
       if (trimmed.startsWith('-')) {
-        sort[trimmed.substring(1)] = -1;
+        const field = trimmed.substring(1);
+        // Handle nested field references
+        sort[field] = -1;
       } else {
         sort[trimmed] = 1;
       }

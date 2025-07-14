@@ -11,7 +11,8 @@ const Results: React.FC = () => {
     tournamentId: '',
     playerId: '',
     division: '',
-    sort: '-date',
+    year: '',
+    sort: '-tournament.date',
   });
 
   const getTournamentResults = useCallback(
@@ -94,7 +95,7 @@ const Results: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tournament
@@ -110,6 +111,22 @@ const Results: React.FC = () => {
                   BOD #{tournament.bodNumber} - {tournament.location}
                 </option>
               )) : null}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Year
+            </label>
+            <select
+              value={filters.year}
+              onChange={(e) => handleFilterChange('year', e.target.value)}
+              className="input"
+            >
+              <option value="">All Years</option>
+              {Array.from({ length: 16 }, (_, i) => 2024 - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
 
@@ -135,10 +152,14 @@ const Results: React.FC = () => {
               onChange={(e) => handleFilterChange('sort', e.target.value)}
               className="input"
             >
-              <option value="-date">Date (Newest First)</option>
-              <option value="date">Date (Oldest First)</option>
-              <option value="finalRank">Final Rank</option>
-              <option value="winPercentage">Win Percentage</option>
+              <option value="-tournament.date">Date (Newest First)</option>
+              <option value="tournament.date">Date (Oldest First)</option>
+              <option value="totalStats.bodFinish">Best Finish First</option>
+              <option value="-totalStats.bodFinish">Worst Finish First</option>
+              <option value="-totalStats.winPercentage">Win % (High to Low)</option>
+              <option value="totalStats.winPercentage">Win % (Low to High)</option>
+              <option value="-totalStats.totalWon">Most Games Won</option>
+              <option value="tournament.bodNumber">BOD Number</option>
             </select>
           </div>
         </div>
@@ -254,6 +275,9 @@ const Results: React.FC = () => {
                 {results.data.filter((r: any) => r.totalStats?.bodFinish === 1).length}
               </div>
               <div className="text-sm text-gray-600">Championships</div>
+              <div className="text-xs text-gray-400 mt-1">
+                {(results as any).pagination?.total ? `${((results.data.filter((r: any) => r.totalStats?.bodFinish === 1).length / (results as any).pagination.total) * 100).toFixed(1)}%` : '0%'} of results
+              </div>
             </div>
           </Card>
           
@@ -263,6 +287,9 @@ const Results: React.FC = () => {
                 {results.data.filter((r: any) => r.totalStats?.bodFinish === 2).length}
               </div>
               <div className="text-sm text-gray-600">Runner-ups</div>
+              <div className="text-xs text-gray-400 mt-1">
+                {(results as any).pagination?.total ? `${((results.data.filter((r: any) => r.totalStats?.bodFinish === 2).length / (results as any).pagination.total) * 100).toFixed(1)}%` : '0%'} of results
+              </div>
             </div>
           </Card>
           
@@ -272,15 +299,21 @@ const Results: React.FC = () => {
                 {results.data.filter((r: any) => r.totalStats?.bodFinish === 3).length}
               </div>
               <div className="text-sm text-gray-600">Third Places</div>
+              <div className="text-xs text-gray-400 mt-1">
+                {(results as any).pagination?.total ? `${((results.data.filter((r: any) => r.totalStats?.bodFinish === 3).length / (results as any).pagination.total) * 100).toFixed(1)}%` : '0%'} of results
+              </div>
             </div>
           </Card>
           
           <Card padding="md">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {results.data.reduce((sum: number, r: any) => sum + (r.totalStats?.totalWon || 0), 0)}
+                {results.data.reduce((sum: number, r: any) => sum + (r.totalStats?.totalWon || 0), 0).toLocaleString()}
               </div>
               <div className="text-sm text-gray-600">Total Games Won</div>
+              <div className="text-xs text-gray-400 mt-1">
+                Across {results.data.length} team results
+              </div>
             </div>
           </Card>
         </div>

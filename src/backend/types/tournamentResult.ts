@@ -69,4 +69,6 @@ export interface ITournamentResultFilter {
   'totalStats.finalRank'?: number | { $gte?: number; $lte?: number };
   'totalStats.bodFinish'?: number | { $gte?: number; $lte?: number };
   'totalStats.winPercentage'?: { $gte?: number; $lte?: number };
+  'tournament.date'?: any;
+  [key: string]: any; // Allow dynamic fields for aggregation
 }

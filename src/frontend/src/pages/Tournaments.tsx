@@ -11,6 +11,8 @@ const Tournaments: React.FC = () => {
     format: '',
     location: '',
     year: undefined as number | undefined,
+    bodNumber_min: undefined as number | undefined,
+    bodNumber_max: undefined as number | undefined,
     sort: '-date',
   });
 
@@ -34,7 +36,11 @@ const Tournaments: React.FC = () => {
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ 
       ...prev, 
-      [key]: key === 'year' ? (value === '0' ? undefined : parseInt(value)) : value 
+      [key]: key === 'year' 
+        ? (value === '0' ? undefined : parseInt(value))
+        : key.includes('_min') || key.includes('_max')
+        ? (value === '' ? undefined : parseInt(value))
+        : value 
     }));
     setPage(1);
   };
@@ -75,7 +81,7 @@ const Tournaments: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Format
@@ -120,6 +126,34 @@ const Tournaments: React.FC = () => {
               ))}
             </select>
           </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Min BOD Number
+            </label>
+            <input
+              type="number"
+              value={filters.bodNumber_min || ''}
+              onChange={(e) => handleFilterChange('bodNumber_min', e.target.value)}
+              placeholder="e.g., 200901"
+              className="input"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Max BOD Number
+            </label>
+            <input
+              type="number"
+              value={filters.bodNumber_max || ''}
+              onChange={(e) => handleFilterChange('bodNumber_max', e.target.value)}
+              placeholder="e.g., 202412"
+              className="input"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -132,13 +166,56 @@ const Tournaments: React.FC = () => {
             >
               <option value="-date">Date (Newest First)</option>
               <option value="date">Date (Oldest First)</option>
-              <option value="bodNumber">BOD Number</option>
-              <option value="location">Location</option>
+              <option value="-bodNumber">BOD Number (High to Low)</option>
+              <option value="bodNumber">BOD Number (Low to High)</option>
+              <option value="location">Location (A-Z)</option>
+              <option value="-location">Location (Z-A)</option>
               <option value="format">Format</option>
             </select>
           </div>
         </div>
       </Card>
+
+      {/* Summary Stats */}
+      {tournaments && 'data' in tournaments && Array.isArray(tournaments.data) && tournaments.data.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {tournaments.data.filter((t: any) => t.format === 'M').length}
+              </div>
+              <div className="text-sm text-gray-600">Men's Tournaments</div>
+            </div>
+          </Card>
+          
+          <Card padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-pink-600">
+                {tournaments.data.filter((t: any) => t.format === 'W').length}
+              </div>
+              <div className="text-sm text-gray-600">Women's Tournaments</div>
+            </div>
+          </Card>
+          
+          <Card padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {tournaments.data.filter((t: any) => t.format === 'Mixed').length}
+              </div>
+              <div className="text-sm text-gray-600">Mixed Tournaments</div>
+            </div>
+          </Card>
+          
+          <Card padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {[...new Set(tournaments.data.map((t: any) => new Date(t.date).getFullYear()))].length}
+              </div>
+              <div className="text-sm text-gray-600">Years Active</div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Tournaments List */}
       <Card>
