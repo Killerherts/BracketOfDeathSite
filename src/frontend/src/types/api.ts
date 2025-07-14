@@ -51,7 +51,8 @@ export interface PlayerInput {
 
 // Tournament types
 export interface Tournament {
-  id: string;
+  id:string;
+  name: string;
   date: string;
   bodNumber: number;
   format: string;
@@ -111,7 +112,7 @@ export interface TotalStats {
 
 export interface TournamentResult {
   id: string;
-  tournamentId: string;
+  tournamentId: Tournament;
   players: Player[];
   division?: string;
   seed?: number;

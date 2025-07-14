@@ -210,75 +210,89 @@ const PlayerDetail: React.FC = () => {
         </div>
       </Card>
 
-      {/* Recent Results */}
+      {/* Tournaments List */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Tournament Results</h3>
-          <Link to={`/results?playerId=${id}`} className="btn btn-outline btn-sm">
-            View All Results
-          </Link>
-        </div>
-        
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Player Tournament History</h3>
         {resultsLoading ? (
           <div className="flex items-center justify-center py-8">
             <LoadingSpinner size="md" />
-            <span className="ml-2 text-gray-500">Loading results...</span>
+            <span className="ml-2 text-gray-500">Loading tournament history...</span>
           </div>
         ) : Array.isArray(results) && results.length > 0 ? (
           <div className="space-y-3">
-            {results.slice(0, 5).map((result: any) => (
-              <div key={result.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    result.totalStats?.bodFinish === 1 ? 'bg-yellow-100 text-yellow-800' :
-                    result.totalStats?.bodFinish === 2 ? 'bg-gray-100 text-gray-800' :
-                    result.totalStats?.bodFinish === 3 ? 'bg-orange-100 text-orange-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {result.totalStats?.bodFinish || 0}
-                  </div>
-                  <div>
-                    <Link 
-                      to={`/tournaments/${result.tournamentId?.id || result.tournamentId?._id || result.tournamentId}`}
-                      className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
-                    >
-                      BOD #{result.tournamentId?.bodNumber || 'N/A'} - {result.tournamentId?.location || 'Unknown Location'}
-                    </Link>
-                    <div className="text-sm text-gray-600">
-                      {result.tournamentId?.date ? new Date(result.tournamentId.date).toLocaleDateString() : 'Date unknown'}
-                    </div>
-                    {result.teamName && (
-                      <div className="text-sm text-gray-500">
-                        Team: {result.teamName}
+            {results.map((result: any) => {
+              const partner = result.players?.find((p: any) => p._id !== id);
+              const tournament = result.tournamentId;
+
+              const getRankIndicatorClass = (rank: number) => {
+                switch (rank) {
+                  case 1: return 'border-l-4 border-yellow-400';
+                  case 2: return 'border-l-4 border-gray-400';
+                  case 3: return 'border-l-4 border-orange-500';
+                  default: return 'border-l-4 border-transparent';
+                }
+              };
+
+              return (
+                <Link
+                  key={result.id}
+                  to={`/tournaments/${tournament?.id || tournament?._id}`}
+                  className={`block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all ${getRankIndicatorClass(result.totalStats?.finalRank)}`}
+                >
+                  <div className="grid grid-cols-3 gap-4 items-center">
+                    {/* Left Column: Tournament Info */}
+                    <div className="col-span-2">
+                      <p className="font-medium text-gray-900 hover:text-primary-600 transition-colors">
+                        {tournament.name}
+                      </p>
+                      <div className="text-sm text-gray-600 space-y-1 mt-1">
+                        <p>
+                          <span className="font-semibold">Date:</span> {new Date(tournament.date).toLocaleDateString()}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Location:</span> {tournament.location}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Format:</span> {tournament.format}
+                        </p>
+                        {partner && (
+                          <p>
+                            <span className="font-semibold">Partner:</span> {partner.name}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-medium text-gray-900">
-                    {result.totalStats?.totalWon || 0}-{result.totalStats?.totalLost || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {result.totalStats?.totalPlayed > 0 ? 
-                      `${((result.totalStats?.totalWon / result.totalStats?.totalPlayed) * 100).toFixed(1)}%` : 
-                      '0%'
-                    }
-                  </div>
-                  {result.performanceGrade && (
-                    <div className="text-xs text-gray-500">
-                      Grade: {result.performanceGrade}
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
+
+                    {/* Right Column: Performance Stats */}
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-gray-800">
+                        Rank: {result.totalStats?.finalRank || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        (Seed: {result.seed || 'N/A'})
+                      </p>
+                      <div className="mt-2">
+                        <p className="font-medium text-gray-700">
+                          {result.totalStats?.totalWon || 0}W - {result.totalStats?.totalLost || 0}L
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {result.totalStats.winPercentage != null 
+                            ? `${(result.totalStats.winPercentage * 100).toFixed(0)}% Win Rate` 
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-8">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-gray-400 text-xl">📊</span>
+              <span className="text-gray-400 text-xl">🏆</span>
             </div>
-            <p className="text-gray-500">No tournament results found</p>
+            <p className="text-gray-500">No tournament history found for this player.</p>
           </div>
         )}
       </Card>

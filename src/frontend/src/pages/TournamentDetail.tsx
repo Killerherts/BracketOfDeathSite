@@ -48,10 +48,11 @@ const TournamentDetail: React.FC = () => {
   };
 
   const getFormatDisplayName = (format: string) => {
-    switch (format) {
+    if (!format) return '';
+    switch (format.toUpperCase()) {
       case 'M': return "Men's";
       case 'W': return "Women's";
-      case 'Mixed': return "Mixed";
+      case 'MIXED': return "Mixed";
       default: return format;
     }
   };
@@ -109,34 +110,29 @@ const TournamentDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div className="flex items-center space-x-4">
-          <Link to="/tournaments" className="text-gray-500 hover:text-gray-700">
-            ← Back to Tournaments
-          </Link>
-          <div className="w-16 h-16 bg-primary-100 rounded-lg flex items-center justify-center">
-            <span className="text-primary-600 font-bold text-lg">
+          <div className="w-16 h-16 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-primary-600 font-bold text-xl">
               #{tournamentData.bodNumber}
             </span>
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {getFormatDisplayName(tournamentData.format)} Tournament
-              </h1>
+            <h1 className="text-2xl font-bold text-gray-900">{tournamentData.name || `${getFormatDisplayName(tournamentData.format)} Tournament`}</h1>
+            <div className="flex items-center space-x-3 text-gray-600 mt-1">
               <span className={`px-2 py-1 text-xs font-medium rounded-full ${getFormatBadgeColor(tournamentData.format)}`}>
                 {getFormatDisplayName(tournamentData.format)}
               </span>
+              <span>•</span>
+              <span>{tournamentData.location}</span>
+              <span>•</span>
+              <span>{formatDate(tournamentData.date)}</span>
             </div>
-            <p className="text-gray-600">
-              {tournamentData.location} • {formatDate(tournamentData.date)}
-            </p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">BOD Number</p>
-          <p className="text-lg font-bold text-primary-600">#{tournamentData.bodNumber}</p>
-        </div>
+        <Link to="/tournaments" className="btn btn-outline ml-4">
+          Back to Tournaments
+        </Link>
       </div>
 
       {/* Tabs */}
@@ -164,98 +160,109 @@ const TournamentDetail: React.FC = () => {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Date</p>
-                  <p className="font-medium">{formatDate(tournamentData.date)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Format</p>
-                  <p className="font-medium">{getFormatDisplayName(tournamentData.format)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-medium">{tournamentData.location}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">BOD Number</p>
-                  <p className="font-medium">#{tournamentData.bodNumber}</p>
-                </div>
-              </div>
-              {tournamentData.notes && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500">Notes</p>
-                  <p className="font-medium">{tournamentData.notes}</p>
-                </div>
-              )}
-              <div className="mt-4">
-                <p className="text-sm text-gray-500">Advancement Criteria</p>
-                <p className="font-medium">{tournamentData.advancementCriteria}</p>
-              </div>
-            </Card>
-          </div>
+        <div className="space-y-6">
+          {/* Final Standings */}
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Standings</h3>
+            <div className="flex justify-center items-end space-x-4 md:space-x-8 pt-4">
+              {/* Second Place */}
+              {(() => {
+                const secondPlace = ((results as any)?.results || []).find((r: any) => r.totalStats?.bodFinish === 2);
+                return secondPlace ? (
+                  <div className="text-center">
+                    <div className="w-24 h-20 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2">
+                      <span className="text-4xl">🥈</span>
+                    </div>
+                    <div className="font-bold text-gray-800">{secondPlace.teamName}</div>
+                    <div className="text-sm text-gray-600">2nd Place</div>
+                  </div>
+                ) : <div className="w-24"/>;
+              })()}
 
-          <div className="space-y-4">
-            <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Teams</span>
-                  <span className="font-medium">
-                    {results && (results as any).results ? (results as any).results.length : 0}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Champion</span>
-                  <span className="font-medium text-yellow-600">
-                    {results && (results as any).results ? 
-                      (() => {
-                        const champion = (results as any).results.find((r: any) => r.totalStats?.bodFinish === 1);
-                        return champion ? champion.teamName : 'N/A';
-                      })() : 'N/A'
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Games</span>
-                  <span className="font-medium">
-                    {results && (results as any).results ? 
-                      (results as any).results.reduce((sum: number, r: any) => sum + (r.totalStats?.totalPlayed || 0), 0) : 0
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Status</span>
-                  <span className="font-medium text-green-600">Completed</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Season</span>
-                  <span className="font-medium">{tournamentData.season || 'N/A'}</span>
-                </div>
-              </div>
-            </Card>
+              {/* First Place */}
+              {(() => {
+                const firstPlace = ((results as any)?.results || []).find((r: any) => r.totalStats?.bodFinish === 1);
+                return firstPlace ? (
+                  <div className="text-center">
+                    <div className="w-28 h-24 bg-yellow-300 rounded-t-lg flex items-center justify-center mb-2">
+                      <span className="text-5xl">🏆</span>
+                    </div>
+                    <div className="font-bold text-gray-800">{firstPlace.teamName}</div>
+                    <div className="text-sm text-gray-600">Champion</div>
+                  </div>
+                ) : <div className="w-28"/>;
+              })()}
 
-            <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-              <div className="space-y-2">
-                <button 
-                  onClick={() => setActiveTab('results')}
-                  className="w-full btn btn-primary"
-                >
-                  View Results
-                </button>
-                <button 
-                  onClick={() => setActiveTab('bracket')}
-                  className="w-full btn btn-secondary"
-                >
-                  View Bracket
-                </button>
-              </div>
-            </Card>
+              {/* Third Place */}
+              {(() => {
+                const thirdPlace = ((results as any)?.results || []).find((r: any) => r.totalStats?.bodFinish === 3);
+                return thirdPlace ? (
+                  <div className="text-center">
+                    <div className="w-24 h-16 bg-orange-300 rounded-t-lg flex items-center justify-center mb-2">
+                      <span className="text-4xl">🥉</span>
+                    </div>
+                    <div className="font-bold text-gray-800">{thirdPlace.teamName}</div>
+                    <div className="text-sm text-gray-600">3rd Place</div>
+                  </div>
+                ) : <div className="w-24"/>;
+              })()}
+            </div>
+          </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Tournament Info */}
+            <div className="md:col-span-2">
+              <Card>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Information</h3>
+                {tournamentData.notes && (
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-gray-700">Notes</p>
+                    <p className="text-gray-600">{tournamentData.notes}</p>
+                  </div>
+                )}
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700">Advancement Criteria</p>
+                  <p className="text-gray-600">{tournamentData.advancementCriteria}</p>
+                </div>
+
+                {tournamentData.photoAlbums && (
+                  <div className="mt-6">
+                    <a
+                      href={tournamentData.photoAlbums}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary w-full md:w-auto"
+                    >
+                      View Photo Album
+                    </a>
+                  </div>
+                )}
+              </Card>
+            </div>
+            {/* Quick Stats */}
+            <div className="space-y-4">
+              <Card>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status</span>
+                    <span className="font-medium text-green-600">Completed</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Teams</span>
+                    <span className="font-medium">
+                      {(results as any)?.results?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Games Played</span>
+                    <span className="font-medium">
+                      {((results as any)?.results || []).reduce((sum: number, r: any) => sum + (r.totalStats?.totalPlayed || 0), 0)}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
       )}
@@ -329,11 +336,16 @@ const TournamentDetail: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="font-medium text-gray-900">{result.teamName || 'Team'}</div>
-                            <div className="text-sm text-gray-500">
-                              {result.players?.[0]?.name} & {result.players?.[1]?.name}
-                            </div>
+                          <div className="font-medium text-gray-900">{result.teamName}</div>
+                          <div className="text-sm text-gray-500">
+                            {result.players?.map((player: any, index: number) => (
+                              <React.Fragment key={player._id}>
+                                <Link to={`/players/${player._id}`} className="hover:text-primary-600 hover:underline">
+                                  {player.name}
+                                </Link>
+                                {index < result.players.length - 1 && ' & '}
+                              </React.Fragment>
+                            ))}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -422,37 +434,6 @@ const TournamentDetail: React.FC = () => {
           {/* Bracket Visualization */}
           {results && (results as any).results && (results as any).results.length > 0 ? (
             <div className="space-y-6">
-              {/* Seeding and Round Robin Results */}
-              <Card>
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Round Robin Seeding</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {((results as any).results as any[])
-                    .sort((a, b) => (a.seed || 999) - (b.seed || 999))
-                    .map((result) => (
-                      <div 
-                        key={result.id} 
-                        className={`p-3 rounded-lg border-2 ${
-                          result.seed <= 4 ? 'border-green-200 bg-green-50' :
-                          result.seed <= 8 ? 'border-blue-200 bg-blue-50' :
-                          result.seed <= 12 ? 'border-yellow-200 bg-yellow-50' :
-                          'border-gray-200 bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-sm">#{result.seed || 'N/A'}</span>
-                          <span className="text-xs text-gray-600">RR: {result.roundRobinScores?.rrWon || 0}-{result.roundRobinScores?.rrLost || 0}</span>
-                        </div>
-                        <div className="font-medium text-sm text-gray-900 mb-1">
-                          {result.teamName || 'Unknown Team'}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {result.division || 'No Division'}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Card>
-
               {/* Bracket Rounds */}
               <Card>
                 <h4 className="text-md font-semibold text-gray-900 mb-4">Bracket Results</h4>
@@ -539,53 +520,6 @@ const TournamentDetail: React.FC = () => {
                 </div>
               </Card>
 
-              {/* Champions Podium */}
-              <Card>
-                <h4 className="text-md font-semibold text-gray-900 mb-4">Final Standings</h4>
-                <div className="flex justify-center items-end space-x-4">
-                  {/* Second Place */}
-                  {(() => {
-                    const secondPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 2);
-                    return secondPlace ? (
-                      <div className="text-center">
-                        <div className="w-20 h-16 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2">
-                          <span className="text-3xl">🥈</span>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{secondPlace.teamName}</div>
-                        <div className="text-xs text-gray-600">2nd Place</div>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* First Place */}
-                  {(() => {
-                    const firstPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 1);
-                    return firstPlace ? (
-                      <div className="text-center">
-                        <div className="w-24 h-20 bg-yellow-300 rounded-t-lg flex items-center justify-center mb-2">
-                          <span className="text-4xl">🏆</span>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{firstPlace.teamName}</div>
-                        <div className="text-xs text-gray-600">Champion</div>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* Third Place */}
-                  {(() => {
-                    const thirdPlace = ((results as any).results as any[]).find(r => r.totalStats?.bodFinish === 3);
-                    return thirdPlace ? (
-                      <div className="text-center">
-                        <div className="w-20 h-12 bg-orange-200 rounded-t-lg flex items-center justify-center mb-2">
-                          <span className="text-3xl">🥉</span>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{thirdPlace.teamName}</div>
-                        <div className="text-xs text-gray-600">3rd Place</div>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </Card>
             </div>
           ) : (
             <Card>

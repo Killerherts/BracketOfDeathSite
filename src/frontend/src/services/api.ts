@@ -216,8 +216,18 @@ class ApiClient {
     return this.get<ApiResponse>(`/tournament-results/tournament/${tournamentId}`);
   }
 
-  async getResultsByPlayer(playerId: string): Promise<ApiResponse> {
-    return this.get<ApiResponse>(`/tournament-results/player/${playerId}`);
+  async getResultsByPlayer(
+    playerId: string
+  ): Promise<ApiResponse<{
+    player: Player;
+    results: (TournamentResult & { tournamentId: Tournament })[];
+    stats: any;
+  }>> {
+    return this.get<ApiResponse<{
+      player: Player;
+      results: (TournamentResult & { tournamentId: Tournament })[];
+      stats: any;
+    }>>(`/tournament-results/player/${playerId}`);
   }
 
   async getLeaderboard(filters?: { tournamentId?: string; format?: string; year?: number; limit?: number }): Promise<ApiResponse> {

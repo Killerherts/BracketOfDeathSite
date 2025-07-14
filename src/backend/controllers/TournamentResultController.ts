@@ -219,7 +219,7 @@ export class TournamentResultController extends BaseController<ITournamentResult
       const results = await TournamentResult.find({ 
         players: { $in: [playerId] } 
       })
-        .populate('tournamentId', 'date format location bodNumber')
+        .populate('tournamentId')
         .populate('players', 'name')
         .sort({ 'tournament.date': -1 });
 
