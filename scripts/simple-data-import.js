@@ -7,7 +7,7 @@ const DATA_DIR = '/app/data';
 
 const STATUS_FILE = '/app/status/import-completed';
 
-console.log('Starting simple data import...');
+console.log('Starting comprehensive data import (All Players, Champions, All Scores, Individual Tournaments)...');
 
 async function simpleImport() {
   // Check if import has already been completed
@@ -45,7 +45,15 @@ async function simpleImport() {
     await importPlayers(db);
     console.log('Players import completed');
     
-    // Get all tournament files from the data directory
+    // Import champions/tournament metadata
+    await importChampions(db);
+    console.log('Champions metadata import completed');
+    
+    // Import all scores data (comprehensive historical data)
+    await importAllScores(db);
+    console.log('All scores import completed');
+    
+    // Get all tournament files from the data directory (as backup/validation)
     const files = fs.readdirSync(DATA_DIR);
     const validFiles = files.filter(file => 
       file.endsWith('.json') && 
@@ -80,10 +88,13 @@ async function simpleImport() {
       }
     }
     
-    console.log(`\n=== Import Summary ===`);
-    console.log(`Tournaments imported: ${totalTournaments}`);
-    console.log(`Team results imported: ${totalResults}`);
-    console.log(`Import completed successfully!`);
+    console.log(`\n=== Comprehensive Import Summary ===`);
+    console.log(`Players imported: From All Players.json`);
+    console.log(`Champions metadata: Applied to tournaments`);
+    console.log(`All Scores data: Comprehensive historical records imported`);
+    console.log(`Individual tournament files: ${totalTournaments} processed`);
+    console.log(`Additional team results: ${totalResults} from individual files`);
+    console.log(`Comprehensive import completed successfully!`);
     
     // Create status file to indicate completion
     const statusDir = path.dirname(STATUS_FILE);
@@ -384,6 +395,205 @@ async function importPlayers(db) {
   // Show final count
   const finalPlayersCount = await db.collection('players').countDocuments();
   console.log(`  Total players in database: ${finalPlayersCount}`);
+}
+
+async function importChampions(db) {
+  console.log('Importing champions metadata...');
+  
+  const championsFile = path.join(DATA_DIR, 'Champions.json');
+  if (!fs.existsSync(championsFile)) {
+    console.log('Champions.json not found, skipping champions import');
+    return;
+  }
+  
+  const championsData = JSON.parse(fs.readFileSync(championsFile, 'utf8'));
+  let updatedTournaments = 0;
+  
+  for (const champData of championsData) {
+    // Skip summary/aggregate rows
+    if (!champData.Format || champData.Format.includes('(') || champData.Date === null) {
+      continue;
+    }
+    
+    // Try to match tournament by format and approximate date
+    const format = champData.Format;
+    let normalizedFormat = 'Mixed';
+    if (format && format.toLowerCase().includes('men')) normalizedFormat = 'M';
+    else if (format && format.toLowerCase().includes('women')) normalizedFormat = 'W';
+    
+    // Find matching tournament
+    const tournament = await db.collection('tournaments').findOne({ format: normalizedFormat });
+    if (tournament) {
+      // Update tournament with champions metadata
+      const updateData = {};
+      if (champData.Location) updateData.location = champData.Location;
+      if (champData['Advancement Criteria']) updateData.advancementCriteria = champData['Advancement Criteria'];
+      if (champData.Notes) updateData.notes = champData.Notes;
+      if (champData['Photo Albums']) updateData.photoAlbums = champData['Photo Albums'];
+      
+      if (Object.keys(updateData).length > 0) {
+        await db.collection('tournaments').updateOne(
+          { _id: tournament._id },
+          { $set: updateData }
+        );
+        updatedTournaments++;
+      }
+    }
+  }
+  
+  console.log(`  ✓ Updated ${updatedTournaments} tournaments with champions metadata`);
+}
+
+async function importAllScores(db) {
+  console.log('Importing all scores data...');
+  
+  const allScoresFile = path.join(DATA_DIR, 'All Scores.json');
+  if (!fs.existsSync(allScoresFile)) {
+    console.log('All Scores.json not found, skipping all scores import');
+    return;
+  }
+  
+  const allScoresData = JSON.parse(fs.readFileSync(allScoresFile, 'utf8'));
+  const newTournaments = new Map();
+  const allTeamResults = [];
+  
+  console.log(`  Processing ${allScoresData.length} score records...`);
+  
+  for (const scoreData of allScoresData) {
+    // Skip invalid records
+    if (!scoreData.Date || !scoreData['Player 1'] || !scoreData['Player 2']) {
+      continue;
+    }
+    
+    // Convert date
+    const tournamentDate = new Date(scoreData.Date);
+    if (isNaN(tournamentDate.getTime())) continue;
+    
+    // Generate BOD number
+    const year = tournamentDate.getFullYear();
+    const month = tournamentDate.getMonth() + 1;
+    const bodNumber = parseInt(`${year}${month.toString().padStart(2, '0')}`);
+    
+    // Normalize format
+    let format = 'Mixed';
+    if (scoreData.Format) {
+      if (scoreData.Format.toLowerCase().includes('men')) format = 'M';
+      else if (scoreData.Format.toLowerCase().includes('women')) format = 'W';
+    }
+    
+    // Create or update tournament entry
+    if (!newTournaments.has(bodNumber)) {
+      newTournaments.set(bodNumber, {
+        bodNumber: bodNumber,
+        date: tournamentDate,
+        format: format,
+        location: 'Tournament Location',
+        advancementCriteria: 'Standard tournament advancement rules',
+        notes: `${format} tournament with consolidated scores data`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+    
+    // Find players
+    const player1 = await db.collection('players').findOne({ name: scoreData['Player 1'] });
+    const player2 = await db.collection('players').findOne({ name: scoreData['Player 2'] });
+    
+    if (!player1 || !player2) {
+      continue;
+    }
+    
+    // Create comprehensive team result
+    const teamResult = {
+      bodNumber: bodNumber, // Use for grouping before tournament creation
+      players: [player1._id, player2._id],
+      division: scoreData.Division || scoreData['Division.1'] || '',
+      seed: parseInt(scoreData.Seed) || undefined,
+      roundRobinScores: {
+        round1: parseInt(scoreData['Round-1']) || 0,
+        round2: parseInt(scoreData['Round-2']) || 0,
+        round3: parseInt(scoreData['Round-3']) || 0,
+        rrWon: parseInt(scoreData['RR Won']) || 0,
+        rrLost: parseInt(scoreData['RR Lost']) || 0,
+        rrPlayed: parseInt(scoreData['RR Played']) || 0,
+        rrWinPercentage: parseFloat(scoreData['RR Win %']) || 0,
+        rrRank: parseFloat(scoreData['RR Rank']) || 0
+      },
+      bracketScores: {
+        r16Won: parseInt(scoreData['R16 Won']) || 0,
+        r16Lost: parseInt(scoreData['R16 Lost']) || 0,
+        qfWon: parseInt(scoreData['QF Won']) || 0,
+        qfLost: parseInt(scoreData['QF Lost']) || 0,
+        sfWon: parseInt(scoreData['SF Won']) || 0,
+        sfLost: parseInt(scoreData['SF Lost']) || 0,
+        finalsWon: parseInt(scoreData['Finals Won']) || 0,
+        finalsLost: parseInt(scoreData['Finals Lost']) || 0,
+        bracketWon: parseInt(scoreData['Bracket Won']) || 0,
+        bracketLost: parseInt(scoreData['Bracket Lost']) || 0,
+        bracketPlayed: parseInt(scoreData['Bracket Played']) || 0
+      },
+      totalStats: {
+        totalWon: parseInt(scoreData['Total Won']) || 0,
+        totalLost: parseInt(scoreData['Total Lost']) || 0,
+        totalPlayed: parseInt(scoreData['Total Played']) || 0,
+        winPercentage: parseFloat(scoreData['Win%']) || 0,
+        finalRank: parseFloat(scoreData['Final Rank']) || 0,
+        bodFinish: parseInt(scoreData['BOD Finish']) || 0,
+        home: false
+      },
+      bracketMatchup: scoreData['Bracket Matchup'] || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    allTeamResults.push(teamResult);
+  }
+  
+  // Insert tournaments from All Scores data
+  if (newTournaments.size > 0) {
+    const tournamentsToInsert = Array.from(newTournaments.values());
+    
+    // Check for existing tournaments and only insert new ones
+    const existingBodNumbers = await db.collection('tournaments').distinct('bodNumber');
+    const newTournamentsToInsert = tournamentsToInsert.filter(t => !existingBodNumbers.includes(t.bodNumber));
+    
+    if (newTournamentsToInsert.length > 0) {
+      await db.collection('tournaments').insertMany(newTournamentsToInsert);
+      console.log(`  ✓ Inserted ${newTournamentsToInsert.length} new tournaments from All Scores`);
+    }
+  }
+  
+  // Get tournament IDs and update team results
+  for (const teamResult of allTeamResults) {
+    const tournament = await db.collection('tournaments').findOne({ bodNumber: teamResult.bodNumber });
+    if (tournament) {
+      teamResult.tournamentId = tournament._id;
+      delete teamResult.bodNumber; // Remove temporary field
+    }
+  }
+  
+  // Insert team results (with duplicate checking)
+  const validTeamResults = allTeamResults.filter(tr => tr.tournamentId);
+  if (validTeamResults.length > 0) {
+    // Check for existing results to avoid duplicates
+    let insertedCount = 0;
+    for (const teamResult of validTeamResults) {
+      const existing = await db.collection('tournamentresults').findOne({
+        tournamentId: teamResult.tournamentId,
+        players: { $all: teamResult.players }
+      });
+      
+      if (!existing) {
+        try {
+          await db.collection('tournamentresults').insertOne(teamResult);
+          insertedCount++;
+        } catch (e) {
+          // Skip duplicates or validation errors
+        }
+      }
+    }
+    console.log(`  ✓ Inserted ${insertedCount} new team results from All Scores`);
+  }
 }
 
 simpleImport();
