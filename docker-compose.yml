@@ -42,7 +42,7 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI}
     volumes:
-      - ./json:/app/data:ro
+      - ./json/fixed:/app/data:ro
       - ./data/init-status:/app/status
     networks:
       - bod-network
