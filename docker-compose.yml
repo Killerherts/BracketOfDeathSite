@@ -108,7 +108,7 @@ services:
 networks:
   bod-network:
     driver: bridge
-    name: bracket-of-death-network
+    name: bob-network
 
 volumes:
   mongodb-data:
