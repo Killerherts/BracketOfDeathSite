@@ -20,12 +20,8 @@ const calculateTournamentStats = (tournament: ITournament): void => {
     tournament.date = new Date(tournament.date);
   }
 
-  // Auto-generate BOD number if not provided
-  if (!tournament.bodNumber) {
-    const year = tournament.date.getFullYear();
-    const month = tournament.date.getMonth() + 1;
-    tournament.bodNumber = parseInt(`${year}${month.toString().padStart(2, '0')}`);
-  }
+  // BOD number should be provided and sequential (1, 2, 3, etc.)
+  // No auto-generation needed
 
   // Normalize format
   if (tournament.format) {
@@ -59,8 +55,8 @@ const tournamentSchema = new Schema<ITournament>(
       required: [true, ErrorMessages.REQUIRED],
       unique: true,
       index: true,
-      min: [200901, 'BOD number must be valid (format: YYYYMM)'],
-      validate: createNumericValidator(200901),
+      min: [1, 'BOD number must be a positive integer starting from 1'],
+      validate: createNumericValidator(1),
     },
     format: {
       type: String,
@@ -105,27 +101,34 @@ const tournamentSchema = new Schema<ITournament>(
   baseSchemaOptions
 );
 
-// Custom validation for BOD number format
+// Custom validation for BOD number format - supports both sequential (1, 2, 3...) and legacy YYYYMM format
 tournamentSchema.path('bodNumber').validate(function (bodNumber: number) {
+  // Sequential format: positive integers starting from 1
+  if (bodNumber >= 1 && bodNumber <= 999999) {
+    return Number.isInteger(bodNumber);
+  }
+  
+  // Legacy YYYYMM format validation (for backwards compatibility)
   const bodStr = bodNumber.toString();
-  if (bodStr.length !== 6) return false;
+  if (bodStr.length === 6) {
+    const year = parseInt(bodStr.substring(0, 4));
+    const month = parseInt(bodStr.substring(4, 6));
+    return year >= 2009 && month >= 1 && month <= 12;
+  }
   
-  const year = parseInt(bodStr.substring(0, 4));
-  const month = parseInt(bodStr.substring(4, 6));
-  
-  return year >= 2009 && month >= 1 && month <= 12;
-}, 'BOD number must be in format YYYYMM');
+  return false;
+}, 'BOD number must be a positive integer or legacy YYYYMM format');
 
-// Custom validation for date and BOD number consistency
-tournamentSchema.path('date').validate(function (date: Date) {
-  if (!this.bodNumber) return true;
-  
-  const bodStr = this.bodNumber.toString();
-  const bodYear = parseInt(bodStr.substring(0, 4));
-  const bodMonth = parseInt(bodStr.substring(4, 6));
-  
-  return date.getFullYear() === bodYear && (date.getMonth() + 1) === bodMonth;
-}, 'Date must match BOD number year and month');
+// Remove strict date/BOD number consistency validation since we now support sequential numbering
+// tournamentSchema.path('date').validate(function (date: Date) {
+//   if (!this.bodNumber) return true;
+//   
+//   const bodStr = this.bodNumber.toString();
+//   const bodYear = parseInt(bodStr.substring(0, 4));
+//   const bodMonth = parseInt(bodStr.substring(4, 6));
+//   
+//   return date.getFullYear() === bodYear && (date.getMonth() + 1) === bodMonth;
+// }, 'Date must match BOD number year and month');
 
 // Virtual for formatted date
 tournamentSchema.virtual('formattedDate').get(function (this: ITournament) {

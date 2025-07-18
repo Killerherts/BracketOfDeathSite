@@ -92,9 +92,13 @@ const Tournaments: React.FC = () => {
               className="select"
             >
               <option value="">All Formats</option>
-              <option value="M">Men's</option>
-              <option value="W">Women's</option>
-              <option value="Mixed">Mixed</option>
+              <option value="M">Men's (Legacy)</option>
+              <option value="W">Women's (Legacy)</option>
+              <option value="Mixed">Mixed (Legacy)</option>
+              <option value="Men's Singles">Men's Singles</option>
+              <option value="Men's Doubles">Men's Doubles</option>
+              <option value="Women's Doubles">Women's Doubles</option>
+              <option value="Mixed Doubles">Mixed Doubles</option>
             </select>
           </div>
           
@@ -182,7 +186,7 @@ const Tournaments: React.FC = () => {
           <Card padding="md">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {tournaments.data.filter((t: any) => t.format === 'M').length}
+                {tournaments.data.filter((t: any) => t.format.includes('Men')).length}
               </div>
               <div className="text-sm text-gray-600">Men's Tournaments</div>
             </div>
@@ -191,7 +195,7 @@ const Tournaments: React.FC = () => {
           <Card padding="md">
             <div className="text-center">
               <div className="text-2xl font-bold text-pink-600">
-                {tournaments.data.filter((t: any) => t.format === 'W').length}
+                {tournaments.data.filter((t: any) => t.format.includes('Women')).length}
               </div>
               <div className="text-sm text-gray-600">Women's Tournaments</div>
             </div>
@@ -200,7 +204,7 @@ const Tournaments: React.FC = () => {
           <Card padding="md">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {tournaments.data.filter((t: any) => t.format === 'Mixed').length}
+                {tournaments.data.filter((t: any) => t.format.includes('Mixed')).length}
               </div>
               <div className="text-sm text-gray-600">Mixed Tournaments</div>
             </div>
@@ -247,14 +251,14 @@ const Tournaments: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
-                            {tournament.format === 'M' ? "Men's" : tournament.format === 'W' ? "Women's" : "Mixed"} Tournament
+                            {tournament.format} Tournament
                           </h3>
                           <span className={`badge ${
-                            tournament.format === 'M' ? 'badge-primary' : 
-                            tournament.format === 'W' ? 'bg-pink-100 text-pink-800' : 
+                            tournament.format.includes('Men') ? 'badge-primary' : 
+                            tournament.format.includes('Women') ? 'bg-pink-100 text-pink-800' : 
                             'badge-success'
                           }`}>
-                            {tournament.format === 'M' ? "Men's" : tournament.format === 'W' ? "Women's" : "Mixed"}
+                            {tournament.format}
                           </span>
                         </div>
                         <div className="space-y-1">

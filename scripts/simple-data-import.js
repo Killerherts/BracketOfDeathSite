@@ -120,7 +120,59 @@ async function importTournamentFile(db, filePath) {
   const [datePart, formatPart] = fileName.replace('.json', '').split(' ');
   const tournamentDate = new Date(datePart);
   
-  // Generate BOD number (YYYYMM format)
+  // Check if tournament already exists by date (avoid duplicates with Champions.json data)
+  const existingTournament = await db.collection('tournaments').findOne({
+    date: {
+      $gte: new Date(tournamentDate.getTime() - 24 * 60 * 60 * 1000), // 1 day before
+      $lte: new Date(tournamentDate.getTime() + 24 * 60 * 60 * 1000)  // 1 day after
+    }
+  });
+  
+  if (existingTournament) {
+    console.log(`  Tournament already exists for ${datePart} (BOD #${existingTournament.bodNumber}), skipping tournament creation`);
+    
+    // Still process team results for this existing tournament
+    const validTeamData = tournamentData.filter(team => {
+      // Skip summary/aggregate rows
+      if (!team['Teams (Round Robin)'] || 
+          team['Teams (Round Robin)'] === "Tiebreakers" ||
+          team.Date === "Home" || 
+          team.Date === null) {
+        return false;
+      }
+      
+      // New format (2024+) has Player 1 and Player 2 fields
+      if (team['Player 1'] && team['Player 2']) {
+        return true;
+      }
+      
+      // Old format - check if Teams (Round Robin) has two players
+      if (team['Teams (Round Robin)']) {
+        const teamName = team['Teams (Round Robin)'];
+        // Check if it contains ' & ' indicating two players
+        if (teamName.includes(' & ') && teamName.split(' & ').length === 2) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
+    if (validTeamData.length === 0) {
+      console.log(`  No valid team data found for existing tournament`);
+      return null;
+    }
+    
+    console.log(`  Found ${validTeamData.length} valid team records for existing tournament`);
+    
+    // Use existing tournament ID
+    const tournamentId = existingTournament._id;
+    
+    // Process team results (rest of the function continues below)
+    return await processTeamResults(db, tournamentId, validTeamData);
+  }
+  
+  // Generate BOD number (YYYYMM format) - only for tournaments not in Champions.json
   const year = tournamentDate.getFullYear();
   const month = tournamentDate.getMonth() + 1;
   const bodNumber = parseInt(`${year}${month.toString().padStart(2, '0')}`);
@@ -188,6 +240,11 @@ async function importTournamentFile(db, filePath) {
     return null;
   }
   
+  // Process team results
+  return await processTeamResults(db, tournamentId, validTeamData);
+}
+
+async function processTeamResults(db, tournamentId, validTeamData) {
   // Import team results
   const teamResults = [];
   let playersFound = 0;
@@ -228,6 +285,17 @@ async function importTournamentFile(db, filePath) {
     }
     
     playersFound += 2;
+    
+    // Check for duplicates before inserting
+    const existingResult = await db.collection('tournamentresults').findOne({
+      tournamentId: tournamentId,
+      players: { $all: [player1._id, player2._id] }
+    });
+    
+    if (existingResult) {
+      console.log(`  Skipping duplicate team result for ${player1Name} & ${player2Name}`);
+      continue;
+    }
     
     // Create team result with minimal required fields
     const teamResult = {
@@ -398,7 +466,7 @@ async function importPlayers(db) {
 }
 
 async function importChampions(db) {
-  console.log('Importing champions metadata...');
+  console.log('Importing champions metadata and creating tournaments...');
   
   const championsFile = path.join(DATA_DIR, 'Champions.json');
   if (!fs.existsSync(championsFile)) {
@@ -407,41 +475,60 @@ async function importChampions(db) {
   }
   
   const championsData = JSON.parse(fs.readFileSync(championsFile, 'utf8'));
-  let updatedTournaments = 0;
+  let createdTournaments = 0;
   
   for (const champData of championsData) {
-    // Skip summary/aggregate rows
-    if (!champData.Format || champData.Format.includes('(') || champData.Date === null) {
+    // Skip summary/aggregate rows or invalid data
+    if (!champData.Format || champData.Format.includes('(') || champData.Date === null || !champData['BOD#']) {
       continue;
     }
     
-    // Try to match tournament by format and approximate date
-    const format = champData.Format;
-    let normalizedFormat = 'Mixed';
-    if (format && format.toLowerCase().includes('men')) normalizedFormat = 'M';
-    else if (format && format.toLowerCase().includes('women')) normalizedFormat = 'W';
+    // Filter out future dates (likely data errors)
+    const tournamentDate = new Date(champData.Date);
+    if (tournamentDate > new Date()) {
+      console.log(`  Skipping future date: BOD #${champData['BOD#']} - ${tournamentDate.toDateString()}`);
+      continue;
+    }
     
-    // Find matching tournament
-    const tournament = await db.collection('tournaments').findOne({ format: normalizedFormat });
-    if (tournament) {
-      // Update tournament with champions metadata
-      const updateData = {};
-      if (champData.Location) updateData.location = champData.Location;
-      if (champData['Advancement Criteria']) updateData.advancementCriteria = champData['Advancement Criteria'];
-      if (champData.Notes) updateData.notes = champData.Notes;
-      if (champData['Photo Albums']) updateData.photoAlbums = champData['Photo Albums'];
-      
-      if (Object.keys(updateData).length > 0) {
-        await db.collection('tournaments').updateOne(
-          { _id: tournament._id },
-          { $set: updateData }
-        );
-        updatedTournaments++;
-      }
+    const bodNumber = champData['BOD#'];
+    
+    // Normalize format to detailed format types
+    const format = champData.Format;
+    let normalizedFormat = 'Mixed Doubles'; // Default
+    if (format === 'Men\'s Singles') normalizedFormat = 'Men\'s Singles';
+    else if (format === 'Men\'s Doubles') normalizedFormat = 'Men\'s Doubles';
+    else if (format === 'Women\'s Doubles') normalizedFormat = 'Women\'s Doubles';
+    else if (format === 'Mixed Doubles') normalizedFormat = 'Mixed Doubles';
+    
+    // Check if tournament already exists
+    const existingTournament = await db.collection('tournaments').findOne({ bodNumber: bodNumber });
+    if (existingTournament) {
+      continue;
+    }
+    
+    // Create tournament with proper BOD number
+    const tournament = {
+      bodNumber: bodNumber,
+      date: tournamentDate,
+      format: normalizedFormat,
+      location: champData.Location || 'Tournament Location',
+      advancementCriteria: champData['Advancement Criteria'] || 'Standard tournament advancement rules',
+      notes: champData.Notes || `${normalizedFormat} tournament on ${tournamentDate.toDateString()}`,
+      photoAlbums: champData['Photo Albums'] || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    try {
+      await db.collection('tournaments').insertOne(tournament);
+      createdTournaments++;
+      console.log(`  ✓ Created BOD #${bodNumber}: ${normalizedFormat} - ${tournamentDate.toDateString()}`);
+    } catch (error) {
+      console.log(`  ✗ Failed to create BOD #${bodNumber}: ${error.message}`);
     }
   }
   
-  console.log(`  ✓ Updated ${updatedTournaments} tournaments with champions metadata`);
+  console.log(`  ✓ Created ${createdTournaments} tournaments from Champions data`);
 }
 
 async function importAllScores(db) {
@@ -454,10 +541,12 @@ async function importAllScores(db) {
   }
   
   const allScoresData = JSON.parse(fs.readFileSync(allScoresFile, 'utf8'));
-  const newTournaments = new Map();
   const allTeamResults = [];
   
   console.log(`  Processing ${allScoresData.length} score records...`);
+  
+  let matchedTournaments = 0;
+  let unmatchedRecords = 0;
   
   for (const scoreData of allScoresData) {
     // Skip invalid records
@@ -466,34 +555,26 @@ async function importAllScores(db) {
     }
     
     // Convert date
-    const tournamentDate = new Date(scoreData.Date);
-    if (isNaN(tournamentDate.getTime())) continue;
+    const scoreDate = new Date(scoreData.Date);
+    if (isNaN(scoreDate.getTime())) continue;
     
-    // Generate BOD number
-    const year = tournamentDate.getFullYear();
-    const month = tournamentDate.getMonth() + 1;
-    const bodNumber = parseInt(`${year}${month.toString().padStart(2, '0')}`);
+    // Find the tournament by matching the date (within a reasonable range)
+    const tournament = await db.collection('tournaments').findOne({
+      date: {
+        $gte: new Date(scoreDate.getTime() - 24 * 60 * 60 * 1000), // 1 day before
+        $lte: new Date(scoreDate.getTime() + 24 * 60 * 60 * 1000)  // 1 day after
+      }
+    });
     
-    // Normalize format
-    let format = 'Mixed';
-    if (scoreData.Format) {
-      if (scoreData.Format.toLowerCase().includes('men')) format = 'M';
-      else if (scoreData.Format.toLowerCase().includes('women')) format = 'W';
+    if (!tournament) {
+      unmatchedRecords++;
+      if (unmatchedRecords <= 5) {
+        console.log(`  Could not match tournament for date: ${scoreDate.toDateString()}`);
+      }
+      continue;
     }
     
-    // Create or update tournament entry
-    if (!newTournaments.has(bodNumber)) {
-      newTournaments.set(bodNumber, {
-        bodNumber: bodNumber,
-        date: tournamentDate,
-        format: format,
-        location: 'Tournament Location',
-        advancementCriteria: 'Standard tournament advancement rules',
-        notes: `${format} tournament with consolidated scores data`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-    }
+    matchedTournaments++;
     
     // Find players
     const player1 = await db.collection('players').findOne({ name: scoreData['Player 1'] });
@@ -505,7 +586,7 @@ async function importAllScores(db) {
     
     // Create comprehensive team result
     const teamResult = {
-      bodNumber: bodNumber, // Use for grouping before tournament creation
+      tournamentId: tournament._id,
       players: [player1._id, player2._id],
       division: scoreData.Division || scoreData['Division.1'] || '',
       seed: parseInt(scoreData.Seed) || undefined,
@@ -549,35 +630,14 @@ async function importAllScores(db) {
     allTeamResults.push(teamResult);
   }
   
-  // Insert tournaments from All Scores data
-  if (newTournaments.size > 0) {
-    const tournamentsToInsert = Array.from(newTournaments.values());
-    
-    // Check for existing tournaments and only insert new ones
-    const existingBodNumbers = await db.collection('tournaments').distinct('bodNumber');
-    const newTournamentsToInsert = tournamentsToInsert.filter(t => !existingBodNumbers.includes(t.bodNumber));
-    
-    if (newTournamentsToInsert.length > 0) {
-      await db.collection('tournaments').insertMany(newTournamentsToInsert);
-      console.log(`  ✓ Inserted ${newTournamentsToInsert.length} new tournaments from All Scores`);
-    }
-  }
-  
-  // Get tournament IDs and update team results
-  for (const teamResult of allTeamResults) {
-    const tournament = await db.collection('tournaments').findOne({ bodNumber: teamResult.bodNumber });
-    if (tournament) {
-      teamResult.tournamentId = tournament._id;
-      delete teamResult.bodNumber; // Remove temporary field
-    }
-  }
+  console.log(`  Matched ${matchedTournaments} records to tournaments, ${unmatchedRecords} unmatched`);
   
   // Insert team results (with duplicate checking)
-  const validTeamResults = allTeamResults.filter(tr => tr.tournamentId);
-  if (validTeamResults.length > 0) {
-    // Check for existing results to avoid duplicates
+  if (allTeamResults.length > 0) {
     let insertedCount = 0;
-    for (const teamResult of validTeamResults) {
+    let duplicateCount = 0;
+    
+    for (const teamResult of allTeamResults) {
       const existing = await db.collection('tournamentresults').findOne({
         tournamentId: teamResult.tournamentId,
         players: { $all: teamResult.players }
@@ -588,11 +648,16 @@ async function importAllScores(db) {
           await db.collection('tournamentresults').insertOne(teamResult);
           insertedCount++;
         } catch (e) {
-          // Skip duplicates or validation errors
+          // Skip validation errors
+          console.log(`    Failed to insert team result: ${e.message}`);
         }
+      } else {
+        duplicateCount++;
       }
     }
+    
     console.log(`  ✓ Inserted ${insertedCount} new team results from All Scores`);
+    console.log(`  ⚠ Skipped ${duplicateCount} duplicate results`);
   }
 }
 

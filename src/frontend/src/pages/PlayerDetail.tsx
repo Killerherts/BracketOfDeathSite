@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import apiClient from '../services/api';
@@ -9,6 +9,7 @@ import StatCard from '../components/ui/StatCard';
 const PlayerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'tournaments' | 'matches'>('tournaments');
 
   const getPlayer = useCallback(
     () => apiClient.getPlayer(id!),
@@ -210,9 +211,37 @@ const PlayerDetail: React.FC = () => {
         </div>
       </Card>
 
-      {/* Tournaments List */}
+      {/* Tabs */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Player Tournament History</h3>
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('tournaments')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'tournaments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Tournament Results
+            </button>
+            <button
+              onClick={() => setActiveTab('matches')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'matches'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Match History
+            </button>
+          </nav>
+        </div>
+        
+        <div className="mt-4">
+          {activeTab === 'tournaments' ? (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tournament Results</h3>
         {resultsLoading ? (
           <div className="flex items-center justify-center py-8">
             <LoadingSpinner size="md" />
@@ -287,14 +316,104 @@ const PlayerDetail: React.FC = () => {
               );
             })}
           </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-gray-400 text-xl">🏆</span>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-gray-400 text-xl">🏆</span>
+                  </div>
+                  <p className="text-gray-500">No tournament history found for this player.</p>
+                </div>
+              )}
             </div>
-            <p className="text-gray-500">No tournament history found for this player.</p>
-          </div>
-        )}
+          ) : (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Match History</h3>
+              {resultsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <LoadingSpinner size="md" />
+                  <span className="ml-2 text-gray-500">Loading match history...</span>
+                </div>
+              ) : Array.isArray(results) && results.length > 0 ? (
+                <div className="space-y-4">
+                  {results.map((result: any) => {
+                    const partner = result.players?.find((p: any) => p._id !== id);
+                    const tournament = result.tournamentId;
+                    const matches = [];
+                    
+                    // Extract Round Robin matches
+                    if (result.roundRobinScores) {
+                      const rr = result.roundRobinScores;
+                      if (rr.round1 > 0) matches.push({ type: 'Round Robin 1', score: rr.round1, isWin: rr.round1 > 10 });
+                      if (rr.round2 > 0) matches.push({ type: 'Round Robin 2', score: rr.round2, isWin: rr.round2 > 10 });
+                      if (rr.round3 > 0) matches.push({ type: 'Round Robin 3', score: rr.round3, isWin: rr.round3 > 10 });
+                    }
+                    
+                    // Extract Bracket matches
+                    if (result.bracketScores) {
+                      const bracket = result.bracketScores;
+                      if (bracket.r16Won > 0 || bracket.r16Lost > 0) matches.push({ type: 'Round of 16', won: bracket.r16Won, lost: bracket.r16Lost });
+                      if (bracket.qfWon > 0 || bracket.qfLost > 0) matches.push({ type: 'Quarter Finals', won: bracket.qfWon, lost: bracket.qfLost });
+                      if (bracket.sfWon > 0 || bracket.sfLost > 0) matches.push({ type: 'Semi Finals', won: bracket.sfWon, lost: bracket.sfLost });
+                      if (bracket.finalsWon > 0 || bracket.finalsLost > 0) matches.push({ type: 'Finals', won: bracket.finalsWon, lost: bracket.finalsLost });
+                    }
+                    
+                    return (
+                      <div key={result.id} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <Link
+                            to={`/tournaments/${tournament?.id || tournament?._id}`}
+                            className="font-medium text-gray-900 hover:text-blue-600"
+                          >
+                            BOD #{tournament?.bodNumber} - {tournament?.format}
+                          </Link>
+                          <div className="text-sm text-gray-500">
+                            {new Date(tournament?.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        
+                        {partner && (
+                          <p className="text-sm text-gray-600 mb-3">
+                            <span className="font-medium">Partner:</span> {partner.name}
+                          </p>
+                        )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {matches.map((match, idx) => (
+                            <div key={idx} className="bg-white rounded p-3 border">
+                              <div className="text-sm font-medium text-gray-700">{match.type}</div>
+                              {match.score !== undefined ? (
+                                <div className={`text-lg font-bold ${
+                                  match.isWin ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {match.score} {match.isWin ? 'W' : 'L'}
+                                </div>
+                              ) : (
+                                <div className="text-lg font-bold text-gray-700">
+                                  {match.won}W - {match.lost}L
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {matches.length === 0 && (
+                          <p className="text-sm text-gray-500 italic">No detailed match data available</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-gray-400 text-xl">🎾</span>
+                  </div>
+                  <p className="text-gray-500">No match history found for this player.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

@@ -34,8 +34,12 @@ export interface ITournamentFilter {
 
 export const TournamentFormats = [
   'M',
-  'W',
+  'W', 
   'Mixed',
+  'Men\'s Singles',
+  'Men\'s Doubles',
+  'Women\'s Doubles',
+  'Mixed Doubles',
 ] as const;
 
 export type TournamentFormat = typeof TournamentFormats[number];
